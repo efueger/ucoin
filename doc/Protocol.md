@@ -728,9 +728,9 @@ percentRot  | The percent of previous issuers to reach for personalized difficul
 Variable  | Meaning
 --------- | ----
 members   | Synonym of `members(t = now)`, `wot(t)`, `community(t)` targeting the keys whose last valid (non-expired) membership is either in `Joiners` or `Actives`.
-maxGenTime  | `= avgGenTime * 4`
-minGenTime  | `= avgGenTime / 4`
-maxAcceleration | `= maxGenTime * CEIL((medianTimeBlocks + 1) / 2)`
+maxGenTime  | `= CEIL(avgGenTime * √2)`
+minGenTime  | `= FLOOR(avgGenTime / √2)`
+maxAcceleration | `= maxGenTime * (CEIL((medianTimeBlocks + 1) / 2) + 1)`
 
 ## Processing
 
@@ -951,9 +951,26 @@ A member may *revoke* its membership to the currency by sending an `OUT` members
 `MembersCount` field must be equal to last block's `MembersCount` plus incoming block's `Joiners` count, minus minus this block's `Excluded` count.
 
 ##### Proof-of-Work
-To be valid, a block fingerprint (whole document + signature) must start with a specific number of zeros. Rules is the following, and **relative to a each particular member**:
+To be valid, a block fingerprint (whole document + signature) must start with a specific number of zeros, followed by a number `[0; 7]`.
 
-    NB_ZEROS = MAX [ PoWMin ; PoWMin * FLOOR (percentRot * (1 + nbPreviousIssuers )/ (1 + nbBlocksSince)) ]
+Rules is the following, and **relative to a each particular member**:
+
+    DIFFICULTY = MAX [ PoWMin ; PoWMin * FLOOR (percentRot * (1 + nbPreviousIssuers ) / (1 + nbBlocksSince)) ]
+
+Number of zeros is:
+
+    NB_ZEROS = (DIFFICULTY - (DIFFICULTY % 4)) / 4
+
+Also, it is required to compute remainder:
+
+    REMAINDER = DIFFICULTY % 4
+
+The final rule is: proof-of-work **must start with** `NB_ZEROS` zeros, followed by:
+
+* a character between `[0,F]` if `REMAINDER` equals `0`
+* a character between `[0,7]` if `REMAINDER` equals `1`
+* a character between `[0,3]` if `REMAINDER` equals `2`
+* a character between `[0,1]` if `REMAINDER` equals `3`
 
 Where:
 

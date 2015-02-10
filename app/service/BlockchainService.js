@@ -34,7 +34,7 @@ var statQueue = async.queue(function (task, callback) {
 }, 1);
 
 // Callback used as a semaphore to sync block reception & PoW computation
-var newKeyblockCallback = null;
+var newBlockCallback = null;
 
 // Callback used to start again computation of next PoW
 var computeNextCallback = null;
@@ -173,13 +173,13 @@ function BlockchainService (conn, conf, IdentityService, PeeringService) {
           var isComputeProcessWaiting = computeNextCallback ? true : false;
           if (computationActivated && !isComputeProcessWaiting) {
             // Next will be triggered by computation of the PoW process
-            newKeyblockCallback = next;
+            newBlockCallback = next;
           } else {
             next();
           }
         },
         function (next) {
-          newKeyblockCallback = null;
+          newBlockCallback = null;
           // Do the task, without passing parameters
           task(function (err) {
             next(err);
@@ -1414,24 +1414,31 @@ function BlockchainService (conn, conf, IdentityService, PeeringService) {
     ], done);
   }
 
-  this.prove = function (block, sigFunc, nbZeros, done) {
+  this.prove = function (block, sigFunc, difficulty, done) {
     if (block.number == 0) {
       // On initial block, difficulty is the one given manually
-      block.powMin = nbZeros;
+      block.powMin = difficulty;
     }
-    logger.info('Generating proof-of-work with %s leading zeros... (CPU usage set to %s%)', nbZeros, (conf.cpu*100).toFixed(0));
+    var workers = 0;
+    var remainder = difficulty % 4;
+    var nbZeros = (difficulty - remainder) / 4;
+    var highMark = remainder == 3 ? constants.PROOF_OF_WORK.UPPER_BOUND.LEVEL_3
+      : (remainder == 2 ? constants.PROOF_OF_WORK.UPPER_BOUND.LEVEL_2
+      : (remainder == 1 ?constants.PROOF_OF_WORK.UPPER_BOUND.LEVEL_1
+      : constants.PROOF_OF_WORK.UPPER_BOUND.LEVEL_0));
+    logger.info('Generating proof-of-work with %s leading zeros followed by [0-' + highMark + ']... (CPU usage set to %s%)', nbZeros, (conf.cpu*100).toFixed(0));
     var start = new Date();
     var stopped = false;
     async.whilst(function(){
       return !stopped;
     }, function(next){
       var debug = process.execArgv.toString().indexOf('--debug') !== -1;
-      var forkArgv;
       if(debug) {
         //Set an unused port number.
         process.execArgv = [];
       }
-      var powProcess = childProcess.fork(__dirname + '/../lib/proof', [conf.salt, conf.passwd, nbZeros]);
+      var powProcess = childProcess.fork(__dirname + '/../lib/proof', []);
+      var testsBeforeReleaseMem = 0;
       powProcess.on('message', function(msg) {
         if (!stopped && msg.found) {
           block.signature = msg.sig;
@@ -1444,10 +1451,13 @@ function BlockchainService (conn, conf, IdentityService, PeeringService) {
           done(null, block);
         } else if (!stopped && msg.testsPerRound) {
           // Started...
-          logger.info('Mesured max speed is ~%s tests/s. Proof will try with ~%s tests/s.', msg.testsPerSecond, msg.testsPerRound);
-        } else if (!stopped && msg.nonce > block.nonce + constants.PROOF_OF_WORK.RELEASE_MEMORY) {
+          workers++;
+          block.nonce = msg.nonce;
+          logger.info('Worker#%s: mesured max speed is ~%s tests/s. Proof will try with ~%s tests/s.', workers, msg.testsPerSecond, msg.testsPerRound);
+          testsBeforeReleaseMem = msg.testsPerRound * constants.PROOF_OF_WORK.RELEASE_MEMORY_DELAY;
+        } else if (!stopped && msg.nonce > block.nonce + testsBeforeReleaseMem) {
           // Reset fork process (release memory)...
-          //logger.debug('Release mem... lastCount = %s, nonce = %s', block.nonce);
+          //logger.debug('Release mem... lastCount = %s, nonce = %s', msg.nonce, block.nonce);
           block.nonce = msg.nonce;
           powProcess.kill();
           next();
@@ -1455,17 +1465,17 @@ function BlockchainService (conn, conf, IdentityService, PeeringService) {
           // Continue...
           //console.log('Already made: %s tests...', msg.nonce);
           // Look for incoming block
-          if (newKeyblockCallback) {
+          if (newBlockCallback) {
             stopped = true;
             powProcess.kill();
             next();
             logger.debug('Proof-of-work computation canceled: valid block received');
-            newKeyblockCallback();
+            newBlockCallback();
           }
         }
       });
       // Start
-      powProcess.send({ conf: conf, block: block, zeros: nbZeros });
+      powProcess.send({ conf: conf, block: block, zeros: nbZeros, highMark: highMark });
     }, done);
   };
 

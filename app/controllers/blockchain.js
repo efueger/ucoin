@@ -231,14 +231,14 @@ function BlockchainBinding (wotServer) {
         }
         globalValidator(conf, blockchainDao(conn, null)).getTrialLevel(member, next);
       },
-    ], function (err, nbZeros) {
+    ], function (err, difficulty) {
       if(err){
         res.send(404, err);
         return;
       }
       res.send(200, JSON.stringify({
         "block": nextBlockNumber,
-        "level": nbZeros
+        "level": difficulty
       }, null, "  "));
     });
   };

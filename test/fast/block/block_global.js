@@ -219,19 +219,19 @@ describe("Block global coherence:", function(){
 
   it('a block not starting with a leading zero should fail', test('checkProofOfWork', blocks.NO_LEADING_ZERO, function (err, done) {
     should.exist(err);
-    err.should.equal('Wrong proof-of-work level: given 0 zeros, required was 1 zeros');
+    err.should.equal('Wrong proof-of-work level: given 0 zeros and \'C\', required was 0 zeros and an hexa char between [0-7]');
     done();
   }));
 
   it('a block requiring 2 leading zeros but providing less should fail', test('checkProofOfWork', blocks.REQUIRES_7_LEADING_ZEROS, function (err, done) {
     should.exist(err);
-    err.should.equal('Wrong proof-of-work level: given 0 zeros, required was 2 zeros');
+    err.should.equal('Wrong proof-of-work level: given 0 zeros and \'6\', required was 0 zeros and an hexa char between [0-3]');
     done();
   }));
 
   it('a block requiring 1 leading zeros but providing less should fail', test('checkProofOfWork', blocks.REQUIRES_6_LEADING_ZEROS, function (err, done) {
     should.exist(err);
-    err.should.equal('Wrong proof-of-work level: given 0 zeros, required was 1 zeros');
+    err.should.equal('Wrong proof-of-work level: given 0 zeros and \'C\', required was 0 zeros and an hexa char between [0-7]');
     done();
   }));
 
@@ -242,7 +242,7 @@ describe("Block global coherence:", function(){
 
   it('a block requiring 40 leading zeros as second block of newcomer should fail', test('checkProofOfWork', blocks.SECOND_BLOCK_OF_NEWCOMER, function (err, done) {
     should.exist(err);
-    err.should.equal('Wrong proof-of-work level: given 0 zeros, required was 40 zeros');
+    err.should.equal('Wrong proof-of-work level: given 0 zeros and \'6\', required was 10 zeros and an hexa char between [0-9A-F]');
     done();
   }));
 

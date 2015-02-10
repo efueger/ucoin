@@ -11,22 +11,26 @@ process.on('message', function(stuff){
   var conf = stuff.conf;
   var block = stuff.block;
   var nbZeros = stuff.zeros;
-  //console.log(msg);
+  var highMark = stuff.highMark;
   async.waterfall([
     function(next) {
       signature.sync(conf.salt, conf.passwd, next);
     },
     function(sigFunc, next) {
 
-      var powRegexp = new RegExp('^0{' + nbZeros + '}[^0]');
+      var powRegexp = new RegExp('^0{' + nbZeros + '}' + '[0-' + highMark + ']');
       var pow = "", sig = "", raw = "";
+
+      block.nonce = Math.random() * 1000000000000;
+      if (block.nonce < 0) block.nonce *= -1;
+      block.nonce = Math.round(block.nonce);
 
       // Time must be = [medianTime; medianTime + minSpeed]
       block.time = getBlockTime(block, conf);
       // Test CPU speed
-      var testsPerSecond = nbZeros > 0 ? computeSpeed(block, sigFunc) : 1;
+      var testsPerSecond = nbZeros == 0 && highMark == '9A-F' ? 1 : computeSpeed(block, sigFunc);
       var testsPerRound = Math.round(testsPerSecond*conf.cpu);
-      process.send({ found: false, testsPerSecond: testsPerSecond, testsPerRound: testsPerRound });
+      process.send({ found: false, testsPerSecond: testsPerSecond, testsPerRound: testsPerRound, nonce: block.nonce });
       // Really start now
       var testsCount = 0;
       async.whilst(
