@@ -451,6 +451,7 @@ function BlockchainService (conf, mainDAL, pair) {
                   // logger.debug(newLinks);
                   // logger.debug('------ outdistanced ------');
                   // logger.debug(outdistanced);
+                  logger.debug('Newcomer ' + newcomer + ' is not recognized by ' + JSON.stringify(outdistanced) + ' WoT for this block');
                   next('Newcomer ' + newcomer + ' is not recognized by the WoT for this block');
                 }
                 else next();

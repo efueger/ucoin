@@ -391,6 +391,9 @@ function BlockchainContext(conf, dal) {
         var count = links.length;
         if (newLinks[target] && newLinks[target].length)
           count += newLinks[target].length;
+        if (count < conf.sigQty) {
+          logger.debug('Key ' + target + ' does not have enough links (' + count + '/' + conf.sigQty + ')');
+        }
         next(count < conf.sigQty && 'Key ' + target + ' does not have enough links (' + count + '/' + conf.sigQty + ')');
       }
     ], done);
